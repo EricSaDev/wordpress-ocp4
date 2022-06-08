@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  labels:
+    app: mariadb
+spec:
+  ports:
+    - name: 3306-tcp
+      protocol: TCP
+      port: 3306
+      targetPort: 3306
+  selector:
+    app: mariadb
+    deploymentconfig: mariadb
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: mariadb
+  labels:
+    app: mariadb
+spec:
+  selector:
+    app: mariadb
+    deploymentconfig: mariadb
+  strategy:
+    type: Recreate
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mariadb
+        deploymentconfig: mariadb
+    spec:
+      volumes:
+        - name: mariadb-data
+          persistentVolumeClaim:
+            claimName: mariadb-pvc-persmt
+      containers:
+        - name: mariadb
+          image: mariadb
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: database-user
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: database-password
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: database-root-password
+            - name: MARIADB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: database-name
+          ports:
+            - containerPort: 3306
+              protocol: TCP          
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql          

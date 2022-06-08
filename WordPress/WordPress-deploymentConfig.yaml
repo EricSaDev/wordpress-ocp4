@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  ports:
+    - name: 80-tcp
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: wordpress
+    deploymentconfig: wordpress
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  selector:
+    app: wordpress
+    deploymentconfig: wordpress
+  strategy:
+    type: Recreate
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: wordpress
+        deploymentconfig: wordpress
+    spec:
+      volumes:
+        - name: wordpress-data
+          persistentVolumeClaim:
+            claimName: wordpress-pvc-persmt
+      containers:
+        - name: wordpress
+          image: wordpress
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: mariadb.persmt.svc:3306
+            - name: WORDPRESS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-secret
+                  key: database-user
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-secret
+                  key: database-password            
+            - name: WORDPRESS_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: wordpress-secret
+                  key: database-name
+          ports:
+            - containerPort: 3306
+              protocol: TCP          
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html      
